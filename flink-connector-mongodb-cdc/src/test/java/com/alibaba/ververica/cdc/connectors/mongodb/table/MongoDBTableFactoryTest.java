@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.alibaba.ververica.cdc.connectors.mysql.table;
+package com.alibaba.ververica.cdc.connectors.mongodb.table;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
@@ -32,7 +32,6 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Test;
 
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -42,9 +41,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /**
- * Test for {@link MySQLTableSource} created by {@link MySQLTableSourceFactory}.
+ * Test for {@link MongoDBTableSource} created by {@link MongoDBTableSourceFactory}.
  */
-public class MySQLTableSourceFactoryTest {
+public class MongoDBTableFactoryTest {
 	private static final TableSchema SCHEMA = TableSchema.builder()
 		.field("aaa", DataTypes.INT().notNull())
 		.field("bbb", DataTypes.STRING().notNull())
@@ -59,83 +58,53 @@ public class MySQLTableSourceFactoryTest {
 	private static final String MY_PASSWORD = "flinkpw";
 	private static final String MY_DATABASE = "myDB";
 	private static final String MY_TABLE = "myTable";
+	private static final String MY_SCHEMA = "public";
 	private static final Properties PROPERTIES = new Properties();
 
 	@Test
 	public void testCommonProperties() {
 		Map<String, String> properties = getAllOptions();
+		properties.put("username", MY_USERNAME);
+		properties.put("password", MY_PASSWORD);
 
 		// validation for source
 		DynamicTableSource actualSource = createTableSource(properties);
-		MySQLTableSource expectedSource = new MySQLTableSource(
+		MongoDBTableSource expectedSource = new MongoDBTableSource(
 			TableSchemaUtils.getPhysicalSchema(SCHEMA),
-			3306,
 			MY_LOCALHOST,
 			MY_DATABASE,
 			MY_TABLE,
 			MY_USERNAME,
 			MY_PASSWORD,
-			ZoneId.of("UTC"),
-			PROPERTIES,
-			null
-		);
+			PROPERTIES);
 		assertEquals(expectedSource, actualSource);
 	}
 
 	@Test
 	public void testOptionalProperties() {
 		Map<String, String> options = getAllOptions();
-		options.put("port", "3307");
-		options.put("server-id", "4321");
-		options.put("server-time-zone", "Asia/Shanghai");
+		options.put("username", MY_USERNAME);
+		options.put("password", MY_PASSWORD);
 		options.put("debezium.snapshot.mode", "never");
 
 		DynamicTableSource actualSource = createTableSource(options);
 		Properties dbzProperties = new Properties();
 		dbzProperties.put("snapshot.mode", "never");
-		MySQLTableSource expectedSource = new MySQLTableSource(
+		MongoDBTableSource expectedSource = new MongoDBTableSource(
 			TableSchemaUtils.getPhysicalSchema(SCHEMA),
-			3307,
 			MY_LOCALHOST,
 			MY_DATABASE,
 			MY_TABLE,
 			MY_USERNAME,
 			MY_PASSWORD,
-			ZoneId.of("Asia/Shanghai"),
-			dbzProperties,
-			4321
-		);
+			dbzProperties);
 		assertEquals(expectedSource, actualSource);
 	}
 
 	@Test
 	public void testValidation() {
-		// validate illegal port
-		try {
-			Map<String, String> properties = getAllOptions();
-			properties.put("port", "123b");
-
-			createTableSource(properties);
-			fail("exception expected");
-		} catch (Throwable t) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
-				"Could not parse value '123b' for key 'port'.").isPresent());
-		}
-
-		// validate illegal server id
-		try {
-			Map<String, String> properties = getAllOptions();
-			properties.put("server-id", "123b");
-
-			createTableSource(properties);
-			fail("exception expected");
-		} catch (Throwable t) {
-			assertTrue(ExceptionUtils.findThrowableWithMessage(t,
-				"Could not parse value '123b' for key 'server-id'.").isPresent());
-		}
-
 		// validate missing required
-		Factory factory = new MySQLTableSourceFactory();
+		Factory factory = new MongoDBTableSourceFactory();
 		for (ConfigOption<?> requiredOption : factory.requiredOptions()) {
 			Map<String, String> properties = getAllOptions();
 			properties.remove(requiredOption.key());
@@ -164,12 +133,10 @@ public class MySQLTableSourceFactoryTest {
 
 	private Map<String, String> getAllOptions() {
 		Map<String, String> options = new HashMap<>();
-		options.put("connector", "mysql-cdc");
-		options.put("hostname", MY_LOCALHOST);
+		options.put("connector", "mongodb-cdc");
+		options.put("hosts", MY_LOCALHOST);
 		options.put("database-name", MY_DATABASE);
-		options.put("table-name", MY_TABLE);
-		options.put("username", MY_USERNAME);
-		options.put("password", MY_PASSWORD);
+		options.put("collection-name", MY_TABLE);
 		return options;
 	}
 
@@ -179,7 +146,6 @@ public class MySQLTableSourceFactoryTest {
 			ObjectIdentifier.of("default", "default", "t1"),
 			new CatalogTableImpl(SCHEMA, options, "mock source"),
 			new Configuration(),
-			MySQLTableSourceFactoryTest.class.getClassLoader(),
-				false);
+			MongoDBTableFactoryTest.class.getClassLoader(), false);
 	}
 }

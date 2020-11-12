@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package com.alibaba.ververica.cdc.connectors.mysql.table;
+package com.alibaba.ververica.cdc.connectors.mongodb.table;
 
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableSchema;
@@ -28,65 +28,50 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.types.RowKind;
 
-import com.alibaba.ververica.cdc.connectors.mysql.MySQLSource;
+import com.alibaba.ververica.cdc.connectors.mongodb.MongoDBSource;
 import com.alibaba.ververica.cdc.debezium.DebeziumDeserializationSchema;
 import com.alibaba.ververica.cdc.debezium.DebeziumSourceFunction;
-import com.alibaba.ververica.cdc.debezium.table.RowDataDebeziumDeserializeSchema;
-
-import javax.annotation.Nullable;
 
 import java.time.ZoneId;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Properties;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
- * A {@link DynamicTableSource} that describes how to create a MySQL binlog source from a logical
+ * A {@link DynamicTableSource} that describes how to create a MongoDB oplog source from a logical
  * description.
  */
-public class MySQLTableSource implements ScanTableSource {
+public class MongoDBTableSource implements ScanTableSource {
 
 	private final TableSchema physicalSchema;
-	private final int port;
-	private final String hostname;
+	private final String hosts;
 	private final String database;
 	private final String username;
 	private final String password;
-	private final Integer serverId;
-	private final String tableName;
-	private final ZoneId serverTimeZone;
+	private final String collectionName;
 	private final Properties dbzProperties;
 
-	public MySQLTableSource(
+	public MongoDBTableSource(
 			TableSchema physicalSchema,
-			int port,
-			String hostname,
+			String hosts,
 			String database,
-			String tableName,
+			String collectionName,
 			String username,
 			String password,
-			ZoneId serverTimeZone,
-			Properties dbzProperties,
-			@Nullable Integer serverId) {
+			Properties dbzProperties) {
 		this.physicalSchema = physicalSchema;
-		this.port = port;
-		this.hostname = checkNotNull(hostname);
+		this.hosts = checkNotNull(hosts);
 		this.database = checkNotNull(database);
-		this.tableName = checkNotNull(tableName);
-		this.username = checkNotNull(username);
-		this.password = checkNotNull(password);
-		this.serverId = serverId;
-		this.serverTimeZone = serverTimeZone;
+		this.collectionName = checkNotNull(collectionName);
+		this.username = username;
+		this.password = password;
 		this.dbzProperties = dbzProperties;
 	}
 
 	@Override
 	public ChangelogMode getChangelogMode() {
 		return ChangelogMode.newBuilder()
-			.addContainedKind(RowKind.INSERT)
-			.addContainedKind(RowKind.UPDATE_BEFORE)
 			.addContainedKind(RowKind.UPDATE_AFTER)
 			.addContainedKind(RowKind.DELETE)
 			.build();
@@ -101,18 +86,15 @@ public class MySQLTableSource implements ScanTableSource {
 			rowType,
 			typeInfo,
 			((rowData, rowKind) -> {}),
-			serverTimeZone);
-		MySQLSource.Builder<RowData> builder = MySQLSource.<RowData>builder()
-			.hostname(hostname)
-			.port(port)
+			ZoneId.of("UTC"));
+		MongoDBSource.Builder<RowData> builder = MongoDBSource.<RowData>builder()
+			.hosts(hosts)
 			.databaseList(database)
-			.tableList(database + "." + tableName)
+			.collectionList(database + "." + collectionName)
 			.username(username)
 			.password(password)
-			.serverTimeZone(serverTimeZone.toString())
 			.debeziumProperties(dbzProperties)
 			.deserializer(deserializer);
-		Optional.ofNullable(serverId).ifPresent(builder::serverId);
 		DebeziumSourceFunction<RowData> sourceFunction = builder.build();
 
 		return SourceFunctionProvider.of(sourceFunction, false);
@@ -120,17 +102,14 @@ public class MySQLTableSource implements ScanTableSource {
 
 	@Override
 	public DynamicTableSource copy() {
-		return new MySQLTableSource(
+		return new MongoDBTableSource(
 			physicalSchema,
-			port,
-			hostname,
+			hosts,
 			database,
-			tableName,
+			collectionName,
 			username,
 			password,
-			serverTimeZone,
-			dbzProperties,
-			serverId
+			dbzProperties
 		);
 	}
 
@@ -142,26 +121,23 @@ public class MySQLTableSource implements ScanTableSource {
 		if (o == null || getClass() != o.getClass()) {
 			return false;
 		}
-		MySQLTableSource that = (MySQLTableSource) o;
-		return port == that.port &&
-			Objects.equals(physicalSchema, that.physicalSchema) &&
-			Objects.equals(hostname, that.hostname) &&
+		MongoDBTableSource that = (MongoDBTableSource) o;
+		return Objects.equals(physicalSchema, that.physicalSchema) &&
+			Objects.equals(hosts, that.hosts) &&
 			Objects.equals(database, that.database) &&
 			Objects.equals(username, that.username) &&
 			Objects.equals(password, that.password) &&
-			Objects.equals(serverId, that.serverId) &&
-			Objects.equals(tableName, that.tableName) &&
-			Objects.equals(serverTimeZone, that.serverTimeZone) &&
+			Objects.equals(collectionName, that.collectionName) &&
 			Objects.equals(dbzProperties, that.dbzProperties);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(physicalSchema, port, hostname, database, username, password, serverId, tableName, serverTimeZone, dbzProperties);
+		return Objects.hash(physicalSchema, hosts, database, username, password, collectionName, dbzProperties);
 	}
 
 	@Override
 	public String asSummaryString() {
-		return "MySQL-CDC";
+		return "MongoDB-CDC";
 	}
 }

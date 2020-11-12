@@ -68,7 +68,7 @@ public class ChangelogJsonFormatFactory implements DeserializationFormatFactory,
 				DynamicTableSource.Context context, DataType producedDataType) {
 				final RowType rowType = (RowType) producedDataType.getLogicalType();
 				final TypeInformation<RowData> rowDataTypeInfo =
-					(TypeInformation<RowData>) context.createTypeInformation(producedDataType);
+					context.createTypeInformation(producedDataType);
 				return new ChangelogJsonDeserializationSchema(
 					rowType,
 					rowDataTypeInfo,
