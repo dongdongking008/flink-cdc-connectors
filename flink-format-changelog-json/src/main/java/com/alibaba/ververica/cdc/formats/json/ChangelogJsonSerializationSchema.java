@@ -55,7 +55,9 @@ public class ChangelogJsonSerializationSchema implements SerializationSchema<Row
 	public ChangelogJsonSerializationSchema(RowType rowType, TimestampFormat timestampFormat) {
 		this.jsonSerializer = new JsonRowDataSerializationSchema(
 			createJsonRowType(fromLogicalToDataType(rowType)),
-			timestampFormat);
+			timestampFormat,
+			JsonOptions.MapNullKeyMode.DROP,
+			null);
 		this.timestampFormat = timestampFormat;
 	}
 

@@ -36,7 +36,6 @@ import java.util.Objects;
 import static java.lang.String.format;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
-
 /**
  * Deserialization schema from Changelog Json to Flink Table/SQL internal data structure {@link RowData}.
  */

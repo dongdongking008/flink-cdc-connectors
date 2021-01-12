@@ -35,7 +35,6 @@ public class PostgreSQLSource {
 		return new Builder<>();
 	}
 
-
 	/**
 	 * Builder class of {@link PostgreSQLSource}.
 	 */
